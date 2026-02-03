@@ -1,3 +1,21 @@
+<!--
+---
+name: Azure Functions Python Event Hubs Trigger using Azure Developer CLI
+description: This repository contains an Azure Functions Event Hubs trigger quickstart written in C# and deployed to Azure Functions Flex Consumption using the Azure Developer CLI (azd). The sample demonstrates real-time news streaming with sentiment analysis and engagement tracking.
+page_type: sample
+products:
+- azure-functions
+- azure-event-hubs
+- azure
+- entra-id
+urlFragment: functions-quickstart-dotnet-azd-eventhub
+languages:
+- python
+- bicep
+- azdeveloper
+---
+-->
+
 # Azure Functions with Event Hubs Trigger (Python)
 
 A Python Azure Functions QuickStart project that demonstrates how to use an Event Hubs Trigger with Azure Developer CLI (azd) for quick and easy deployment. This sample showcases a real-time news streaming system with automated content generation and intelligent processing.
