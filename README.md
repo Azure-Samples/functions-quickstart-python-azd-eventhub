@@ -1,14 +1,14 @@
 <!--
 ---
 name: Azure Functions Python Event Hubs Trigger using Azure Developer CLI
-description: This repository contains an Azure Functions Event Hubs trigger quickstart written in C# and deployed to Azure Functions Flex Consumption using the Azure Developer CLI (azd). The sample demonstrates real-time news streaming with sentiment analysis and engagement tracking.
+description: Python Azure Functions sample that streams generated news through Event Hubs, deployed to Flex Consumption with Azure Developer CLI (azd).
 page_type: sample
 products:
 - azure-functions
 - azure-event-hubs
 - azure
 - entra-id
-urlFragment: functions-quickstart-dotnet-azd-eventhub
+urlFragment: functions-quickstart-python-azd-eventhub
 languages:
 - python
 - bicep
@@ -18,36 +18,23 @@ languages:
 
 # Azure Functions with Event Hubs Trigger (Python)
 
-A Python Azure Functions QuickStart project that demonstrates how to use an Event Hubs Trigger with Azure Developer CLI (azd) for quick and easy deployment. This sample showcases a real-time news streaming system with automated content generation and intelligent processing.
+A Python Azure Functions sample that generates news articles on a timer and processes them with an Event Hubs trigger. Deploy it to Azure Functions Flex Consumption with Azure Developer CLI (azd).
 
 ## Architecture
 
-This architecture shows how the Azure Function processes news articles through Event Hubs in real-time. The key components include:
-
 - **News Generator (Timer Trigger)**: Automatically generates realistic news articles every 10 seconds and streams them to Event Hubs
 - **Azure Event Hubs**: Scalable messaging service that handles high-throughput news streaming with 32 partitions
-- **News Processor (Event Hub Trigger)**: Executes automatically when news articles arrive, performing sentiment analysis and engagement tracking
+- **News Processor (Event Hub Trigger)**: Processes articles as they arrive and logs engagement and sentiment scores
 - **Azure Monitor**: Provides logging and metrics for function execution and news analytics
-- **Downstream Integration**: Optional integration with other services for search indexing, push notifications, or analytics
-
-This serverless architecture enables highly scalable, event-driven news processing with built-in resiliency and automatic scaling.
+- **Downstream Integration**: Extend the Event Hubs-triggered function to send processed events to services for search indexing, notifications, or analytics
 
 ## Top Use Cases
 
-1. **Real-time News Processing Pipeline**: Automatically process news articles as they're generated or updated. Perfect for scenarios where you need to analyze sentiment, detect viral content, or trigger notifications when new articles arrive without polling.
+These are scenarios to adapt the sample for. Its generated articles and sentiment and view-count values are synthetic.
 
-2. **Event-Driven Content Management**: Build event-driven architectures where new content automatically triggers downstream business logic. Ideal for content moderation workflows, search index updates, or social media distribution systems.
+1. **Real-time Content Processing**: Consume incoming articles, enrich them with a sentiment-analysis service, and trigger notifications or review based on configured signals.
 
-## Features
-
-* Event Hubs Trigger with high-throughput news streaming (180-270 articles/minute)
-* Azure Functions Flex Consumption plan for automatic scaling
-* Real-time sentiment analysis and engagement tracking
-* Optional VNet integration with private endpoints for enhanced security
-* Azure Developer CLI (azd) integration for easy deployment
-* Infrastructure as Code using Bicep templates with Azure Verified Modules
-* Comprehensive monitoring with Application Insights
-* Managed Identity authentication for secure, passwordless access
+2. **Event-Driven Content Workflows**: Route incoming content from an Event Hubs-triggered function to moderation, search indexing, or analytics systems.
 
 ## Getting Started
 
@@ -71,11 +58,13 @@ This serverless architecture enables highly scalable, event-driven news processi
 2. **Make sure to run this before calling azd to provision resources so azd can run scripts required to setup permissions**
 
    Mac/Linux:
+
    ```bash
    chmod +x ./infra/scripts/*.sh
    ```
 
    Windows:
+
    ```powershell
    Set-ExecutionPolicy RemoteSigned
    ```
@@ -85,16 +74,19 @@ This serverless architecture enables highly scalable, event-driven news processi
    You can choose whether to enable VNet integration:
 
    For simple deployment without VNet (public endpoints):
+
    ```bash
    azd env set VNET_ENABLED false
    ```
 
    For secure deployment with VNet (private endpoints):
+
    ```bash
    azd env set VNET_ENABLED true
    ```
 
    > **Note:** If you don't set `VNET_ENABLED`, the deployment will ask you to make an explicit choice.
+   > Local development with VNet enabled requires access to the VNet.
 
 4. **Provision Azure resources using azd**
 
@@ -136,8 +128,8 @@ This serverless architecture enables highly scalable, event-driven news processi
 
    The News Generator will automatically start creating articles every 10 seconds. You should see console output like:
 
-   ```
-   [2024-11-10T10:30:15.123Z] Successfully generated and sent 5 news articles to Event Hub
+   ```text
+   [2024-11-10T10:30:15.123Z] HIGH-THROUGHPUT: Successfully generated 5 news articles in ~10 seconds
    [2024-11-10T10:30:15.145Z] ✅ Successfully processed article NEWS-20241110-A1B2C3D4 - 'Breaking: Major Discovery in Renewable Energy Technology' by Sarah Johnson
    [2024-11-10T10:30:15.147Z] 🔥 Viral article: NEWS-20241110-E5F6G7H8 - 8,547 views
    [2024-11-10T10:30:15.149Z] 📊 NEWS BATCH SUMMARY: 5 articles | Total Views: 18,432 | Avg Views: 3,686 | Avg Sentiment: 0.34
@@ -161,123 +153,32 @@ This serverless architecture enables highly scalable, event-driven news processi
    - Check the Monitor tab to verify both functions are working
    - Use Application Insights Live Metrics to see real-time news processing
 
+   In Application Insights **Logs**, query generation and processing traces:
+
+   ```kusto
+   traces
+   | where timestamp > ago(1h)
+   | where message contains "Successfully generated" or message contains "Successfully processed article"
+   | project timestamp, message
+   | order by timestamp desc
+   ```
+
 ## Understanding the Code
 
-This sample contains two functions that work together:
+- **NewsGenerator** runs every 10 seconds and sends 3-8 generated articles to the `news` event hub.
+- **EventHubsTrigger** processes incoming articles and logs engagement and sentiment information.
 
-### News Generator (Timer Trigger)
-
-Runs every 10 seconds and generates 3-8 realistic news articles, then sends them to Event Hubs. The key configuration:
-
-- **Timer**: `*/10 * * * * *` (every 10 seconds)
-- **Output**: Event Hubs output binding to "news" hub
-- **Articles**: Realistic content with authors, sources, categories
-
-### News Processor (Event Hubs Trigger)
-
-Triggered automatically when articles arrive in Event Hubs. Performs sentiment analysis and engagement tracking. The key environment variable that configures its behavior is:
-
-- `EventHubConnection__fullyQualifiedNamespace`: The Event Hubs namespace endpoint
-
-These are automatically set up by azd during deployment for both local and cloud environments.
-
-Here's the core implementation of the Event Hubs trigger function:
-
-```python
-@app.event_hub_message_trigger(arg_name="events", event_hub_name="news",
-                                connection="EventHubConnection")
-def EventHubsTrigger(events: List[func.EventHubEvent]):
-    # Handle both single event and list of events
-    if not isinstance(events, list):
-        events = [events]
-    
-    for event in events:
-        news_article = json.loads(event.get_body().decode('utf-8'))
-        # Process news article with sentiment analysis and engagement tracking
-```
-
-## Project Structure
-
-```
-functions-quickstart-python-azd-eventhub/
-├── function_app.py             # Azure Functions with triggers
-├── host.json                   # Function host settings
-├── requirements.txt            # Python dependencies
-├── local.settings.json         # Local development settings (generated)
-├── infra/                      # Infrastructure as Code
-│   ├── main.bicep             # Main infrastructure template
-│   ├── main.parameters.json   # Infrastructure parameters
-│   ├── abbreviations.json     # Resource naming abbreviations
-│   ├── app/                   # Modular infrastructure components
-│   │   ├── api.bicep          # Function App (Flex Consumption)
-│   │   ├── eventhubs.bicep    # Event Hubs namespace and hub
-│   │   ├── eventhubs-PrivateEndpoint.bicep  # Event Hubs private endpoint
-│   │   ├── storage-PrivateEndpoint.bicep    # Storage private endpoint
-│   │   ├── vnet.bicep         # Virtual Network configuration
-│   │   └── rbac.bicep         # Role-based access control
-│   └── scripts/               # Deployment and setup scripts
-│       ├── postprovision.ps1  # Post-provision setup (Windows)
-│       ├── postprovision.sh   # Post-provision setup (POSIX)
-│       ├── setuplocalenvironment.ps1
-│       ├── setuplocalenvironment.sh
-│       ├── addclientip.ps1    # Add client IP to Event Hubs (Windows)
-│       └── addclientip.sh     # Add client IP to Event Hubs (POSIX)
-├── .azure/                     # Azure Developer CLI environment
-├── azure.yaml                  # Azure Developer CLI configuration
-├── README.md                   # Quick start guide
-└── DOCUMENTATION.md            # Detailed documentation
-```
+The `EventHubConnection__fullyQualifiedNamespace` setting identifies the Event Hubs namespace and is configured by `azd`.
 
 ## Networking and VNet Integration
 
-This sample supports optional VNet integration with private endpoints for enhanced security.
+When `VNET_ENABLED=true`, the deployment:
 
-### Configuration
+- Integrates the function app with a VNet and creates separate private endpoint subnets for Event Hubs and Storage.
+- Creates private endpoints for Event Hubs and Storage blob and table access, with VNet-linked private DNS zones.
+- Disables public access to Event Hubs and Storage.
 
-Set the `VNET_ENABLED` environment variable before deployment:
-
-For simple deployment without VNet (public endpoints):
-```bash
-azd env set VNET_ENABLED false
-```
-
-For secure deployment with VNet (private endpoints):
-```bash
-azd env set VNET_ENABLED true
-```
-
-When `vnetEnabled=true`, the deployment creates:
-- Virtual Network with three subnets (app integration, storage endpoints, Event Hub endpoints)
-- Private endpoints for Storage (blob, table, queue) and Event Hubs
-- Private DNS zones for name resolution
-- Network isolation with public access disabled
-
-The VNet deployment takes longer (~4-5 minutes) but provides enhanced security suitable for production workloads.
-
-### VNet Architecture
-
-When VNet integration is enabled, the following network architecture is created:
-
-#### Subnets
-1. App Integration Subnet: For Function App VNet integration
-2. Storage Private Endpoints Subnet: For Storage Account private endpoints
-3. Event Hubs Private Endpoints Subnet: For Event Hubs private endpoints
-
-#### Private Endpoints
-- Storage Account: Blob, Table, and Queue private endpoints
-- Event Hubs: Namespace private endpoint
-
-#### DNS Configuration
-- Private DNS zones are automatically created and linked to the VNet
-- Ensures proper name resolution for private endpoints
-
-### Security Considerations
-
-When using VNet integration:
-- Public access to Event Hubs and Storage is disabled
-- All traffic flows through private endpoints within the VNet
-- Client IP must be added to Event Hubs network rules for local development (done automatically by `addclientip` scripts)
-- Managed Identity is used for authentication between services
+Local clients connecting to these services need network access to the VNet; adding a client IP rule does not bypass disabled public access. The `addclientip` scripts are not run automatically. If run manually, they can enable public Event Hubs access and replace existing IP rules; they do not restore the previous settings.
 
 ## Clean Up Resources
 
@@ -288,6 +189,7 @@ azd down
 ```
 
 This will:
+
 - Delete all Azure resources created by `azd provision`
 - Remove the resource group
 - Clean up the local environment configuration
@@ -299,7 +201,3 @@ This will:
 - [Azure Functions Documentation](https://docs.microsoft.com/azure/azure-functions/)
 - [Azure Event Hubs Documentation](https://docs.microsoft.com/azure/event-hubs/)
 - [Azure Developer CLI Documentation](https://docs.microsoft.com/azure/developer/azure-developer-cli/)
-
-## Additional Information
-
-For detailed documentation including domain model, monitoring queries, and feature details, see [DOCUMENTATION.md](DOCUMENTATION.md).

@@ -172,7 +172,7 @@ module api './app/api.bicep' = {
     deploymentStorageContainerName: deploymentStorageContainerName
     identityId: apiUserAssignedIdentity.outputs.resourceId
     identityClientId: apiUserAssignedIdentity.outputs.clientId
-    virtualNetworkSubnetId: vnetEnabled ? serviceVirtualNetwork.outputs.appSubnetID : ''
+    virtualNetworkSubnetId: vnetEnabled ? serviceVirtualNetwork!.outputs.appSubnetID : ''
     eventHubNamespaceName: eventHubs.outputs.eventHubNamespaceName
     eventHubName: 'news'
     appSettings: []
@@ -214,7 +214,7 @@ module storagePrivateEndpoint './app/storage-PrivateEndpoint.bicep' = if (vnetEn
   params: {
     location: location
     tags: tags
-    virtualNetworkName: vnetName
+    virtualNetworkName: serviceVirtualNetwork!.outputs.vnetName
     subnetName: 'private-endpoints-subnet'
     resourceName: storage.outputs.name
     enableBlob: storageEndpointConfig.enableBlob
@@ -230,7 +230,7 @@ module eventHubsPrivateEndpoint './app/eventhubs-PrivateEndpoint.bicep' = if (vn
   params: {
     location: location
     tags: tags
-    vNetName: vnetName
+    vNetName: serviceVirtualNetwork!.outputs.vnetName
     eventHubSubnetName: 'eventhub-private-endpoints-subnet'
     eventHubNamespaceId: eventHubs.outputs.eventHubNamespaceId
   }
