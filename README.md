@@ -26,6 +26,15 @@ A Python Azure Functions sample that generates news articles on a timer and proc
 - **Azure Event Hubs**: Scalable messaging service that handles high-throughput news streaming with 32 partitions
 - **News Processor (Event Hub Trigger)**: Processes articles as they arrive and logs engagement and sentiment scores
 - **Azure Monitor**: Provides logging and metrics for function execution and news analytics
+- **Downstream Integration**: Extend the Event Hubs-triggered function to send processed events to services for search indexing, notifications, or analytics
+
+## Top Use Cases
+
+These are scenarios to adapt the sample for. Its generated articles and sentiment and view-count values are synthetic.
+
+1. **Real-time Content Processing**: Consume incoming articles, enrich them with a sentiment-analysis service, and trigger notifications or review based on configured signals.
+
+2. **Event-Driven Content Workflows**: Route incoming content from an Event Hubs-triggered function to moderation, search indexing, or analytics systems.
 
 ## Getting Started
 
